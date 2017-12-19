@@ -16,8 +16,6 @@ npm install @nlib/stream-chain
 
 ## Usage
 
-### Tap
-
 ```javascript
 const {Transform} = require('stream');
 const {chain} = require('@nlib/stream-chain');
@@ -38,8 +36,6 @@ class D extends Transform {
 ## Javascript API
 
 `require('@nlib/stream-chain')` returns `{chain}`.
-
-### Tap
 
 #### chain(stream1, ..., streamN)
 
