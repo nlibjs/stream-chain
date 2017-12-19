@@ -1,0 +1,28 @@
+{
+  "name": "@nlib/stream-chain",
+  "publishConfig": {
+    "access": "public"
+  },
+  "version": "0.0.1",
+  "description": "Chain multiple streams.",
+  "author": {
+    "name": "Kei Ito",
+    "email": "kei.itof@gmail.com",
+    "url": "https://github.com/kei-ito"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=6"
+  },
+  "repository": "nlibjs/stream-chain",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "nlib-lint bin src test",
+    "test": "node test",
+    "test_coverage": "nyc --reporter=lcov --reporter=text npm test"
+  },
+  "devDependencies": {
+    "@nlib/lint": "^2.2.1",
+    "@nlib/test": "^1.2.0"
+  }
+}
