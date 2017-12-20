@@ -13,3 +13,11 @@ script:
 after_success:
 - npm install -g codecov
 - codecov
+deploy:
+  provider: npm
+  email: kei.itof@gmail.com
+  api_key:
+    secure: PtLWlq05RRSmPQQ3hIb6sJmrcFS1jpj0QMJBKrnBkCvYcxR3b6obNSiSeO8G88U0w/EdJeQm0cv95LcCwRtHrgh8A+l6Yj4jVMgW/kvjfkQ+jgybOwC/Hn+ihS8EXhJslBSn/4Y+c6Th+qO6p3yGX8y6t06bX07yH1WGRxkZJUUzrI1NvSEpU6aArjEfbwqfdWMHQlbV94aZviJ6LCQy8/3JAqBQxZa0CP9GOcyqtn7T0Rmt+i91enzDTbvyvJV91K+vfhU3Lq0uhLy2rQ8WYhBshb0wJxxiMLOXPZ5cbcWIAqufzFxrculBu4MiLow30uGCZU8QBiJT17fXKcaLK3/0IkZ9d5/XDWd/FUC44FnaZczuZ6+28gHw+b2tM0xWrF6Va6hvsnZJvTPU8IbcNd6O/ldyu89SMTwlJdy+lnkKWCre3awtLOIjPHV+3hxR3HGaKVkFbRWYFMTrTYYm3svjmkd4OBehgli6lcfS2D10MZk85aOQGQBFXcL+FQMMv+OqtnXIDp9oXULbW+mo6Gy/jm5iySoJLkw00QrI6b76N3AKb2IwtAw8VmWgs30qE52W5BINwZ2FdmiJ6TyITigaJgXF3dqgeHAIuXfdj41mjcreLaXKDBsS1GGGog1In94bXuTdgNJezsC9ht6yC07zGioUoVoQwvBkSj7W5ng=
+  on:
+    tags: true
+    repo: nlibjs/stream-chain
