@@ -1,6 +1,6 @@
 const assert = require('assert');
 const test = require('@nlib/test');
-const {PassThrough, Transform, Writable} = require('stream');
+const {Transform, Writable, PassThrough} = require('stream');
 const {chain} = require('..');
 
 class TestStream extends Transform {
@@ -71,34 +71,18 @@ class Terminator extends Writable {
 
 }
 
-function write(source, queue) {
-	setImmediate(write);
-	function write() {
-		const chunk = queue.shift();
-		if (chunk) {
-			source.write(chunk);
-			setImmediate(write);
-		} else {
-			source.end();
-		}
-	}
-}
-
 test('stream-chain', (test) => {
 
-	const N_BUFFER = 1000;
-	const N_PIPELINE = 1000;
+	const N_BUFFER = 10;
+	const N_PIPELINE = 10;
 
 	test('buffer → buffer', () => {
-		const data = new Array(N_BUFFER).fill()
-		.map((x, index) => `${Date.now()}-${index}`);
+		const data = arr(N_BUFFER, (x, index) => `${Date.now()}-${index}`);
 		return new Promise((resolve, reject) => {
-			const source = new PassThrough({objectMode: false});
-			write(source, data.slice());
-			const streams = new Array(N_PIPELINE).fill()
-			.map((x, index) => new TestStream({name: index}));
-			source
-			.pipe(chain(...streams))
+			const streams = arr(N_PIPELINE, (x, index) => new TestStream({name: index}));
+			const chained = chain(...streams);
+			write(chained, data.slice());
+			chained
 			.pipe(new Terminator())
 			.once('error', reject)
 			.once('finish', () => {
@@ -116,19 +100,15 @@ test('stream-chain', (test) => {
 	});
 
 	test('buffer → object', () => {
-		const data = new Array(N_BUFFER).fill()
-		.map((x, index) => `${Date.now()}-${index}`);
+		const data = arr(N_BUFFER, (x, index) => `${Date.now()}-${index}`);
 		return new Promise((resolve, reject) => {
-			const source = new PassThrough({objectMode: false});
-			write(source, data.slice());
 			const half = Math.floor(N_PIPELINE / 2);
-			const bb = new Array(half).fill()
-			.map((x, index) => new TestStream({name: index, mode: 'bb'}));
+			const bb = arr(half, (x, index) => new TestStream({name: index, mode: 'bb'}));
 			const bo = [new TestStream({name: half, mode: 'bo'})];
-			const oo = new Array(half).fill()
-			.map((x, index) => new TestStream({name: half + 1 + index, mode: 'oo'}));
-			source
-			.pipe(chain(...bb, ...bo, ...oo))
+			const oo = arr(half, (x, index) => new TestStream({name: half + 1 + index, mode: 'oo'}));
+			const chained = chain(...bb, ...bo, ...oo);
+			write(chained, data.slice());
+			chained
 			.pipe(new Terminator({objectMode: true}))
 			.once('error', reject)
 			.once('finish', () => {
@@ -154,19 +134,15 @@ test('stream-chain', (test) => {
 	});
 
 	test('object → buffer', () => {
-		const data = new Array(N_BUFFER).fill()
-		.map((x, index) => `${Date.now()}-${index}`);
+		const data = arr(N_BUFFER, (x, index) => `${Date.now()}-${index}`);
 		return new Promise((resolve, reject) => {
-			const source = new PassThrough({objectMode: true});
-			write(source, data.map((value) => ({value})));
 			const half = Math.floor(N_PIPELINE / 2);
-			const oo = new Array(half).fill()
-			.map((x, index) => new TestStream({name: half + 1 + index, mode: 'oo'}));
+			const oo = arr(half, (x, index) => new TestStream({name: half + 1 + index, mode: 'oo'}));
 			const ob = [new TestStream({name: half, mode: 'ob'})];
-			const bb = new Array(half).fill()
-			.map((x, index) => new TestStream({name: index, mode: 'bb'}));
-			source
-			.pipe(chain(...oo, ...ob, ...bb))
+			const bb = arr(half, (x, index) => new TestStream({name: index, mode: 'bb'}));
+			const chained = chain(...oo, ...ob, ...bb);
+			write(chained, data.map((value) => ({value})));
+			chained
 			.pipe(new Terminator())
 			.once('error', reject)
 			.once('finish', () => {
@@ -191,4 +167,70 @@ test('stream-chain', (test) => {
 		});
 	});
 
+	test('error detection', (test) => {
+		const data = arr(N_BUFFER, (x, index) => `${Date.now()}-${index}`);
+		const expectedError = new Error('Expected');
+		test('first', () => {
+			return new Promise((resolve, reject) => {
+				write(chain(
+					new Transform({transform: (chunk, encoding, callback) => callback(expectedError)}),
+					new PassThrough(),
+					new PassThrough()
+				), data.slice())
+				.once('error', reject)
+				.once('finish', resolve);
+			})
+			.then(unexpectedResolve)
+			.catch((error) => assert.equal(error, expectedError));
+		});
+		test('middle', () => {
+			return new Promise((resolve, reject) => {
+				write(chain(
+					new PassThrough(),
+					new Transform({transform: (chunk, encoding, callback) => callback(expectedError)}),
+					new PassThrough()
+				), data.slice())
+				.once('error', reject)
+				.once('finish', resolve);
+			})
+			.then(unexpectedResolve)
+			.catch((error) => assert.equal(error, expectedError));
+		});
+		test('last', () => {
+			return new Promise((resolve, reject) => {
+				write(chain(
+					new PassThrough(),
+					new PassThrough(),
+					new Transform({transform: (chunk, encoding, callback) => callback(expectedError)})
+				), data.slice())
+				.once('error', reject)
+				.once('finish', resolve);
+			})
+			.then(unexpectedResolve)
+			.catch((error) => assert.equal(error, expectedError));
+		});
+	});
+
 }, {timeout: 30000});
+
+function write(source, queue) {
+	setImmediate(write);
+	return source;
+	function write() {
+		const chunk = queue.shift();
+		if (chunk) {
+			source.write(chunk);
+			setImmediate(write);
+		} else {
+			source.end();
+		}
+	}
+}
+
+function arr(length, mapper) {
+	return new Array(length).fill().map(mapper);
+}
+
+function unexpectedResolve() {
+	throw new Error('Resolved unexpectedly');
+}

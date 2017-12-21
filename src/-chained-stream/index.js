@@ -1,20 +1,29 @@
-const {Transform, PassThrough} = require('stream');
+const {Transform} = require('stream');
 
 module.exports = class ChainedStream extends Transform {
 
 	constructor(...streams) {
-		const input = new PassThrough({objectMode: true});
+		let caughtError;
+		const [input] = streams;
 		super({
 			objectMode: true,
 			transform(chunk, encoding, callback) {
-				input.push(chunk);
-				callback();
+				if (caughtError) {
+					if (this.listenerCount('error') === 0) {
+						this.once('error', () => {});
+					}
+					callback(caughtError);
+				} else {
+					input.write(chunk);
+					callback();
+				}
 			},
 			flush(callback) {
 				input.end();
 				onFlush(callback);
 			},
 		});
+		streams.unshift(null);
 		streams.push(new Transform({
 			objectMode: true,
 			transform: (chunk, encoding, callback) => {
@@ -26,11 +35,15 @@ module.exports = class ChainedStream extends Transform {
 				onFlush(callback);
 			},
 		}));
+		const onError = (error) => {
+			caughtError = caughtError || error;
+		};
 		streams.reduce((end, stream) => {
-			return end
-			.pipe(stream)
-			.once('error', (error) => this.destroy(error));
-		}, input);
+			if (end) {
+				end.pipe(stream);
+			}
+			return stream.once('error', onError);
+		});
 		function onFlush(callback) {
 			if (onFlush.callback) {
 				callback();
